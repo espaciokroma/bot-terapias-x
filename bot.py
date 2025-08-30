@@ -1,25 +1,40 @@
-name: Publicar en X
+# bot.py
+import tweepy
+import random
+import os
 
-on:
-  schedule:
-    - cron: '0 */12 * * *'
-  workflow_dispatch:
+def leer_archivo(nombre):
+    try:
+        with open(nombre, "r", encoding="utf-8") as f:
+            lines = [line.strip() for line in f if line.strip()]
+        return lines
+    except FileNotFoundError:
+        print(f"❌ Archivo no encontrado: {nombre}")
+        return []
 
-jobs:
-  tweet:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Configurar Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
-      - name: Instalar dependencias
-        run: pip install tweepy
-      - name: Ejecutar bot
-        env:
-          TWITTER_API_KEY: ${{ secrets.TWITTER_API_KEY }}
-          TWITTER_API_SECRET: ${{ secrets.TWITTER_API_SECRET }}
-          TWITTER_ACCESS_TOKEN: ${{ secrets.TWITTER_ACCESS_TOKEN }}
-          TWITTER_ACCESS_SECRET: ${{ secrets.TWITTER_ACCESS_SECRET }}
-        run: python bot.py
+# Leer frases y enlaces
+frases = leer_archivo("frases.txt")
+enlaces = leer_archivo("enlaces.txt")
+
+if not frases:
+    print("⚠️ No hay frases. No se puede publicar.")
+    exit()
+
+# Decidir si publicar frase o enlace (10% de enlaces)
+if enlaces and random.random() < 0.1:
+    tweet = random.choice(enlaces)
+else:
+    tweet = random.choice(frases)
+
+# Conectar con X
+try:
+    client = tweepy.Client(
+        consumer_key=os.getenv("TWITTER_API_KEY"),
+        consumer_secret=os.getenv("TWITTER_API_SECRET"),
+        access_token=os.getenv("TWITTER_ACCESS_TOKEN"),
+        access_token_secret=os.getenv("TWITTER_ACCESS_SECRET")
+    )
+    client.create_tweet(text=tweet)
+    print("✅ Tweet publicado:", tweet[:50] + "..." if len(tweet) > 50 else tweet)
+except Exception as e:
+    print("❌ Error al publicar:", str(e))
